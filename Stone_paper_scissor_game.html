@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Rock Paper Scissors</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f4f4f4;
+      text-align: center;
+      padding: 30px;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    h1 { color: #333; }
+
+    .score-board {
+      font-size: 20px;
+      margin-bottom: 15px;
+    }
+
+    .choices {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin: 20px 0;
+    }
+
+    .choices button {
+      background-color: #007bff;
+      border: none;
+      padding: 20px;
+      border-radius: 15px;
+      cursor: pointer;
+      font-size: 30px;
+      color: white;
+      transition: transform 0.2s ease;
+      width: 80px;
+      height: 80px;
+    }
+
+    .choices button:hover {
+      background-color: #0056b3;
+      transform: scale(1.1);
+    }
+
+    .result {
+      font-size: 18px;
+      margin-top: 20px;
+      min-height: 90px;
+    }
+
+    .fade {
+      animation: fadeIn 0.5s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    #reset-btn {
+      background-color: #dc3545;
+      padding: 12px 20px;
+      font-size: 18px;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      margin-top: 20px;
+    }
+
+    #reset-btn:hover {
+      background-color: #b02a37;
+    }
+
+    .winner-message {
+      font-size: 22px;
+      margin-top: 15px;
+      color: green;
+    }
+
+    .high-score {
+      font-size: 16px;
+      margin-top: 10px;
+      color: #555;
+    }
+
+    @keyframes burst {
+      0% { transform: scale(0.5) translateY(0); opacity: 1; }
+      100% { transform: scale(1.5) translateY(-100px); opacity: 0; }
+    }
+
+    .celebration span {
+      position: absolute;
+      font-size: 25px;
+      animation: burst 1s ease-out forwards;
+      pointer-events: none;
+    }
+
+    .celebration {
+      position: absolute;
+      top: 30%;
+      left: 50%;
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+    
+    .sound-toggle {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: #333;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Rock Paper Scissors</h1>
+  <button class="sound-toggle" onclick="toggleSound()">🔊 Sound On</button>
+
+  <div class="score-board">
+    <strong>You:</strong> <span id="user-score">0</span> |
+    <strong>Computer:</strong> <span id="computer-score">0</span>
+  </div>
+
+  <div class="choices">
+    <button onclick="playGame('rock')">🪨</button>
+    <button onclick="playGame('paper')">📄</button>
+    <button onclick="playGame('scissors')">✂️</button>
+  </div>
+
+  <div class="result" id="result"></div>
+  <div class="winner-message" id="winner-message"></div>
+  <div class="high-score" id="high-score"></div>
+  <button id="reset-btn" onclick="resetGame()">Reset</button>
+  <div id="celebration" class="celebration"></div>
+
+  <!-- Audio elements with preload -->
+  <audio id="tie1" preload="auto" src="https://assets.mixkit.co/sfx/preview/mixkit-neutral-game-notification-951.mp3"></audio>
+  <audio id="tie2" preload="auto" src="https://assets.mixkit.co/sfx/preview/mixkit-unlock-game-notification-253.mp3"></audio>
+
+  <audio id="win1" preload="auto" src="https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3"></audio>
+  <audio id="win2" preload="auto" src="https://assets.mixkit.co/sfx/preview/mixkit-achievement-bell-600.mp3"></audio>
+
+  <audio id="lose1" preload="auto" src="https://assets.mixkit.co/sfx/preview/mixkit-retro-arcade-lose-2027.mp3"></audio>
+  <audio id="lose2" preload="auto" src="https://assets.mixkit.co/sfx/preview/mixkit-sad-game-trombone-471.mp3"></audio>
+
+  <audio id="final-win" preload="auto" src="https://assets.mixkit.co/sfx/preview/mixkit-video-game-win-2016.mp3"></audio>
+  <audio id="final-lose" preload="auto" src="https://assets.mixkit.co/sfx/preview/mixkit-arcade-retro-game-over-213.mp3"></audio>
+  
+  <!-- Choice sounds -->
+  <audio id="rock-sound" preload="auto" src="https://assets.mixkit.co/sfx/preview/mixkit-rock-hit-758.mp3"></audio>
+  <audio id="paper-sound" preload="auto" src="https://assets.mixkit.co/sfx/preview/mixkit-page-flip-1105.mp3"></audio>
+  <audio id="scissors-sound" preload="auto" src="https://assets.mixkit.co/sfx/preview/mixkit-cutting-paper-1065.mp3"></audio>
+
+  <script>
+    let userScore = 0;
+    let computerScore = 0;
+    let soundEnabled = true;
+
+    const userScoreSpan = document.getElementById('user-score');
+    const computerScoreSpan = document.getElementById('computer-score');
+    const resultDiv = document.getElementById('result');
+    const winnerMessage = document.getElementById('winner-message');
+    const highScoreDiv = document.getElementById('high-score');
+    const celebration = document.getElementById('celebration');
+    const soundToggleBtn = document.querySelector('.sound-toggle');
+
+    // Initialize all audio elements
+    const allAudioElements = document.querySelectorAll('audio');
+    allAudioElements.forEach(audio => {
+      audio.volume = 0.5; // Set default volume to 50%
+    });
+
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      soundToggleBtn.textContent = soundEnabled ? "🔊 Sound On" : "🔇 Sound Off";
+    }
+
+    function updateHighScore() {
+      let maxScore = parseInt(localStorage.getItem('rpsHighScore')) || 0;
+      if (userScore > maxScore) {
+        localStorage.setItem('rpsHighScore', userScore);
+        maxScore = userScore;
+      }
+      highScoreDiv.textContent = `Your Best Score: ${maxScore}`;
+    }
+
+    function playRandomSound(list) {
+      if (!soundEnabled) return;
+      
+      try {
+        const sound = list[Math.floor(Math.random() * list.length)];
+        sound.currentTime = 0;
+        const playPromise = sound.play();
+        
+        if (playPromise !== undefined) {
+          playPromise.catch(error => {
+            console.log("Audio playback failed:", error);
+            // Show message to user that they need to interact first
+            if (error.name === 'NotAllowedError') {
+              alert("Please click anywhere on the page first to enable sounds.");
+            }
+          });
+        }
+      } catch (error) {
+        console.log("Audio error:", error);
+      }
+    }
+
+    function playChoiceSound(choice) {
+      if (!soundEnabled) return;
+      
+      try {
+        const sound = document.getElementById(`${choice}-sound`);
+        if (sound) {
+          sound.currentTime = 0;
+          const playPromise = sound.play();
+          
+          if (playPromise !== undefined) {
+            playPromise.catch(error => {
+              console.log("Audio playback failed:", error);
+            });
+          }
+        }
+      } catch (error) {
+        console.log("Audio error:", error);
+      }
+    }
+
+    function triggerCelebration(type = "round-win") {
+      celebration.innerHTML = '';
+      const emoji = type === "round-loss" ? "😢" : type === "final-loss" ? "😭" : type === "final-win" ? "🏆" : "✨";
+      for (let i = 0; i < 20; i++) {
+        const el = document.createElement('span');
+        el.textContent = emoji;
+        el.style.left = Math.random() * 100 + '%';
+        el.style.animationDuration = (0.8 + Math.random() * 0.5) + 's';
+        celebration.appendChild(el);
+      }
+      setTimeout(() => celebration.innerHTML = '', 1500);
+    }
+
+    function playGame(userChoice) {
+      if (userScore >= 5 || computerScore >= 5) return;
+
+      // Play sound for user's choice
+      playChoiceSound(userChoice);
+
+      const choices = ['rock', 'paper', 'scissors'];
+      const computerChoice = choices[Math.floor(Math.random() * 3)];
+      let resultText = '';
+
+      const winSounds = [document.getElementById('win1'), document.getElementById('win2')];
+      const loseSounds = [document.getElementById('lose1'), document.getElementById('lose2')];
+      const tieSounds = [document.getElementById('tie1'), document.getElementById('tie2')];
+
+      if (userChoice === computerChoice) {
+        resultText = "It's a tie!";
+        playRandomSound(tieSounds);
+      } else if (
+        (userChoice === 'rock' && computerChoice === 'scissors') ||
+        (userChoice === 'paper' && computerChoice === 'rock') ||
+        (userChoice === 'scissors' && computerChoice === 'paper')
+      ) {
+        resultText = `You win! ${userChoice} beats ${computerChoice}`;
+        userScore++;
+        playRandomSound(winSounds);
+        triggerCelebration("round-win");
+      } else {
+        resultText = `You lose! ${computerChoice} beats ${userChoice}`;
+        computerScore++;
+        playRandomSound(loseSounds);
+        triggerCelebration("round-loss");
+      }
+
+      userScoreSpan.textContent = userScore;
+      computerScoreSpan.textContent = computerScore;
+      resultDiv.innerHTML = `
+        <p>You chose <strong>${userChoice}</strong></p>
+        <p>Computer chose <strong>${computerChoice}</strong></p>
+        <h2>${resultText}</h2>`;
+      resultDiv.classList.remove('fade');
+      void resultDiv.offsetWidth;
+      resultDiv.classList.add('fade');
+
+      if (userScore === 5 || computerScore === 5) {
+        if (userScore === 5) {
+          winnerMessage.textContent = "Congratulations! You won the match! 🏆";
+          if (soundEnabled) {
+            document.getElementById('final-win').play().catch(e => console.log("Final win sound failed:", e));
+          }
+          triggerCelebration("final-win");
+        } else {
+          winnerMessage.textContent = "You lost the match. Better luck next time! 😭";
+          if (soundEnabled) {
+            document.getElementById('final-lose').play().catch(e => console.log("Final lose sound failed:", e));
+          }
+          triggerCelebration("final-loss");
+        }
+        updateHighScore();
+      }
+    }
+
+    function resetGame() {
+      userScore = 0;
+      computerScore = 0;
+      userScoreSpan.textContent = userScore;
+      computerScoreSpan.textContent = computerScore;
+      resultDiv.innerHTML = '';
+      winnerMessage.textContent = '';
+      celebration.innerHTML = '';
+      updateHighScore();
+    }
+
+    // Enable audio on first user interaction
+    document.body.addEventListener('click', function initAudio() {
+      // Try to play a silent sound to unlock audio
+      const silentAudio = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU...');
+      silentAudio.volume = 0;
+      silentAudio.play().then(() => {
+        console.log("Audio context unlocked");
+      }).catch(e => {
+        console.log("Audio unlock failed:", e);
+      });
+      
+      // Remove this event listener after first interaction
+      document.body.removeEventListener('click', initAudio);
+    }, { once: true });
+
+    window.onload = updateHighScore;
+  </script>
+
+</body>
+</html>
